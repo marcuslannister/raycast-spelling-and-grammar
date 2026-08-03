@@ -1,0 +1,94 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "spelling-and-grammar",
+  "title": "Spelling and Grammar",
+  "description": "Fix spelling and grammar in the selected text using your own Anthropic or OpenAI API key.",
+  "icon": "icon.png",
+  "author": "flash286",
+  "categories": ["Productivity", "Developer Tools"],
+  "license": "MIT",
+  "commands": [
+    {
+      "name": "fix-spelling-and-grammar",
+      "title": "Fix Spelling and Grammar",
+      "subtitle": "AI",
+      "description": "Correct the spelling and grammar of the selected text, review the changes, then paste.",
+      "mode": "view"
+    }
+  ],
+  "preferences": [
+    {
+      "name": "provider",
+      "title": "Provider",
+      "description": "Which API to call for corrections.",
+      "type": "dropdown",
+      "required": true,
+      "default": "anthropic",
+      "data": [
+        { "title": "Anthropic (Claude)", "value": "anthropic" },
+        { "title": "OpenAI", "value": "openai" }
+      ]
+    },
+    {
+      "name": "anthropicApiKey",
+      "title": "Anthropic API Key",
+      "description": "Required when the provider is Anthropic. Create one at console.anthropic.com.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "openaiApiKey",
+      "title": "OpenAI API Key",
+      "description": "Required when the provider is OpenAI. Create one at platform.openai.com.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "model",
+      "title": "Model",
+      "description": "Optional override. Defaults to claude-sonnet-5 for Anthropic and gpt-4o for OpenAI.",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "claude-sonnet-5"
+    },
+    {
+      "name": "customInstructions",
+      "title": "Extra Instructions",
+      "description": "Optional. Appended to the correction prompt, e.g. \"use British spelling\".",
+      "type": "textfield",
+      "required": false,
+      "placeholder": "use British spelling"
+    },
+    {
+      "name": "showDiffFirst",
+      "title": "View",
+      "label": "Also show removed text",
+      "description": "When on, the result includes struck-through removals. Toggle per-run with Cmd+D.",
+      "type": "checkbox",
+      "required": false,
+      "default": false
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.101.1",
+    "@raycast/utils": "^2.2.1"
+  },
+  "devDependencies": {
+    "@raycast/eslint-config": "^2.0.4",
+    "@types/node": "22.13.10",
+    "@types/react": "19.0.10",
+    "eslint": "^9.22.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "fix-lint": "ray lint --fix",
+    "lint": "ray lint",
+    "icon": "node scripts/make-icon.mjs",
+    "test": "node scripts/test-diff.mjs && node scripts/test-stream.mjs && node scripts/test-request.mjs",
+    "typecheck": "tsc --noEmit",
+    "publish": "npx @raycast/api@latest publish"
+  }
+}
