@@ -27,6 +27,8 @@ interface Prefs {
   provider: Provider;
   anthropicApiKey?: string;
   openaiApiKey?: string;
+  openaiCompatibleApiKey?: string;
+  openaiCompatibleBaseUrl?: string;
   model?: string;
   customInstructions?: string;
   showDiffFirst: boolean;
@@ -38,7 +40,7 @@ export default function FixSpellingAndGrammar() {
   const prefs = getPreferenceValues<Prefs>();
   const provider = prefs.provider;
   const model = prefs.model?.trim() || DEFAULT_MODELS[provider];
-  const apiKey = (provider === "anthropic" ? prefs.anthropicApiKey : prefs.openaiApiKey)?.trim();
+  const apiKey = (prefs[KEY_PREFERENCE[provider] as keyof Prefs] as string | undefined)?.trim();
 
   const [original, setOriginal] = useState("");
   const [origin, setOrigin] = useState<Origin>("selection");
@@ -97,6 +99,7 @@ export default function FixSpellingAndGrammar() {
       const result = await streamCorrection({
         provider: options.provider,
         apiKey: options.apiKey,
+        baseUrl: prefs.openaiCompatibleBaseUrl,
         model: options.model,
         text: input.text,
         systemPrompt: buildSystemPrompt(options.customInstructions),
@@ -159,7 +162,7 @@ export default function FixSpellingAndGrammar() {
       }
       actions={
         <ActionPanel>
-          {corrected && !isLoading ? (
+          {corrected && !isLoading && !error ? (
             <ActionPanel.Section>
               <Action
                 title="Paste Corrected Text"

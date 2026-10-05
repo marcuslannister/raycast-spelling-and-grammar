@@ -1,6 +1,6 @@
 # Spelling and Grammar
 
-A local Raycast extension that replicates Raycast's built-in **Fix Spelling and Grammar** AI command, but calls Anthropic or OpenAI with your own API key instead of going through Raycast Pro.
+A local Raycast extension that replicates Raycast's built-in **Fix Spelling and Grammar** AI command, but calls Anthropic, OpenAI, or an OpenAI-compatible provider such as OpenRouter with your own API key instead of going through Raycast Pro.
 
 It reads the text selected in the frontmost app, corrects it, shows you the changes, and pastes the result back over the selection when you confirm.
 
@@ -11,6 +11,7 @@ It reads the text selected in the frontmost app, corrects it, shows you the chan
 - An API key for whichever provider you pick:
   - Anthropic — https://console.anthropic.com/settings/keys
   - OpenAI — https://platform.openai.com/api-keys
+  - OpenRouter — https://openrouter.ai/keys
 
 Raycast Pro is **not** required.
 
@@ -29,10 +30,12 @@ On first run, set your provider and key in the extension preferences (`⌘,` on 
 
 | Preference | Type | Default | Notes |
 |---|---|---|---|
-| `provider` | dropdown | `anthropic` | Anthropic (Claude) or OpenAI. |
+| `provider` | dropdown | `anthropic` | Anthropic (Claude), OpenAI, or OpenAI-compatible (e.g. OpenRouter). |
 | `anthropicApiKey` | password | — | Required when the provider is Anthropic. |
 | `openaiApiKey` | password | — | Required when the provider is OpenAI. |
-| `model` | textfield | — | Override. Defaults to `claude-sonnet-5` / `gpt-4o`. |
+| `openaiCompatibleApiKey` | password | — | Required when the provider is OpenAI-compatible. |
+| `openaiCompatibleBaseUrl` | textfield | `https://openrouter.ai/api/v1` | OpenAI-compatible only. `/chat/completions` is appended. |
+| `model` | textfield | — | Override. Defaults to `claude-sonnet-5` / `gpt-4o` / `openai/gpt-4o`. |
 | `customInstructions` | textfield | — | Appended to the prompt, e.g. `use British spelling`. |
 | `showDiffFirst` | checkbox | off | Also show struck-through removals. |
 

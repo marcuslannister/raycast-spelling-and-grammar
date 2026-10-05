@@ -126,6 +126,88 @@ const baseOptions = {
   check("openai: assembled result", result, "They're going home.");
 }
 
+// --- OpenAI-compatible request shape -----------------------------------------
+{
+  const compatible = (baseUrl) =>
+    withFetch(
+      () => new Response(sseBody([openaiFrame("They're going home."), "data: [DONE]\n\n"]), { status: 200 }),
+      () =>
+        streamCorrection({
+          ...baseOptions,
+          provider: "openai-compatible",
+          apiKey: "sk-or-test",
+          baseUrl,
+          model: "openai/gpt-4o",
+        }),
+    );
+
+  const [, request] = await compatible("https://example.test/api/v1/");
+  check("compatible: url built from base url", request.url, "https://example.test/api/v1/chat/completions");
+  check("compatible: auth header", request.init.headers.authorization, "Bearer sk-or-test");
+
+  const [, fallback] = await compatible("  ");
+  check(
+    "compatible: empty base url falls back to OpenRouter",
+    fallback.url,
+    "https://openrouter.ai/api/v1/chat/completions",
+  );
+
+  const [, full] = await compatible("https://openrouter.ai/api/v1/chat/completions/");
+  check("compatible: full endpoint url is not doubled", full.url, "https://openrouter.ai/api/v1/chat/completions");
+
+  const [, query] = await compatible("https://example.test/v1?api-version=2024-01-01");
+  check(
+    "compatible: query string stays after the endpoint",
+    query.url,
+    "https://example.test/v1/chat/completions?api-version=2024-01-01",
+  );
+
+  let message = "no error thrown";
+  try {
+    await compatible("openrouter.ai/api/v1");
+  } catch (caught) {
+    message = caught instanceof ProviderError ? caught.message : `wrong type: ${caught}`;
+  }
+  check("compatible: base url without a scheme is explained", message.startsWith("Invalid base URL"), true);
+}
+
+// --- the OpenAI provider never follows the compatible base url ---------------
+{
+  // The base url preference always holds a value, so it reaches every provider.
+  const [, request] = await withFetch(
+    () => new Response(sseBody([openaiFrame("ok")]), { status: 200 }),
+    () =>
+      streamCorrection({
+        ...baseOptions,
+        provider: "openai",
+        apiKey: "sk-oai-test",
+        baseUrl: "https://openrouter.ai/api/v1",
+        model: "gpt-4o",
+      }),
+  );
+  check("openai: ignores the compatible base url", request.url, "https://api.openai.com/v1/chat/completions");
+}
+
+// --- an error frame inside a 200 stream fails the correction ----------------
+{
+  // The shape OpenRouter documents for upstream failures after streaming starts.
+  const errorFrame = `data: ${JSON.stringify({
+    error: { code: "server_error", message: "Provider disconnected unexpectedly" },
+    choices: [{ index: 0, delta: { content: "" }, finish_reason: "error" }],
+  })}\n\n`;
+
+  let message = "no error thrown";
+  try {
+    await withFetch(
+      () => new Response(sseBody([openaiFrame("They're "), errorFrame]), { status: 200 }),
+      () => streamCorrection({ ...baseOptions, provider: "openai-compatible", apiKey: "k", model: "m" }),
+    );
+  } catch (caught) {
+    message = caught instanceof ProviderError ? caught.message : `wrong type: ${caught}`;
+  }
+  check("mid-stream error is not returned as a partial correction", message, "Provider disconnected unexpectedly");
+}
+
 // --- max token budget scales with input -------------------------------------
 {
   const long = "word ".repeat(20000); // 100k chars
@@ -270,8 +352,9 @@ check("429 explains rate limiting", (await errorFor(429, "{}")).includes("Rate l
 check(
   "404 surfaces the provider message",
   await errorFor(404, '{"error":{"message":"model: bogus"}}'),
-  "Model not found (404). model: bogus",
+  "Model or URL not found (404). model: bogus",
 );
+check("404 html page is truncated", (await errorFor(404, `<html>${"x".repeat(1000)}</html>`)).length < 400, true);
 check(
   "500 surfaces status and detail",
   await errorFor(500, '{"error":{"message":"overloaded"}}'),

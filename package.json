@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "spelling-and-grammar",
   "title": "Spelling and Grammar",
-  "description": "Fix spelling and grammar in the selected text using your own Anthropic or OpenAI API key.",
+  "description": "Fix spelling and grammar in the selected text using your own Anthropic, OpenAI, or OpenAI-compatible (e.g. OpenRouter) API key.",
   "icon": "icon.png",
   "author": "flash286",
   "categories": ["Productivity", "Developer Tools"],
@@ -26,7 +26,8 @@
       "default": "anthropic",
       "data": [
         { "title": "Anthropic (Claude)", "value": "anthropic" },
-        { "title": "OpenAI", "value": "openai" }
+        { "title": "OpenAI", "value": "openai" },
+        { "title": "OpenAI-compatible (e.g. OpenRouter)", "value": "openai-compatible" }
       ]
     },
     {
@@ -44,9 +45,25 @@
       "required": false
     },
     {
+      "name": "openaiCompatibleApiKey",
+      "title": "OpenAI-compatible API Key",
+      "description": "Required when the provider is OpenAI-compatible. For OpenRouter, create one at openrouter.ai/keys.",
+      "type": "password",
+      "required": false
+    },
+    {
+      "name": "openaiCompatibleBaseUrl",
+      "title": "OpenAI-compatible Base URL",
+      "description": "Used when the provider is OpenAI-compatible. /chat/completions is appended. Defaults to OpenRouter.",
+      "type": "textfield",
+      "required": false,
+      "default": "https://openrouter.ai/api/v1",
+      "placeholder": "https://openrouter.ai/api/v1"
+    },
+    {
       "name": "model",
       "title": "Model",
-      "description": "Optional override. Defaults to claude-sonnet-5 for Anthropic and gpt-4o for OpenAI.",
+      "description": "Optional override. Defaults to claude-sonnet-5 for Anthropic, gpt-4o for OpenAI, and openai/gpt-4o for OpenAI-compatible.",
       "type": "textfield",
       "required": false,
       "placeholder": "claude-sonnet-5"

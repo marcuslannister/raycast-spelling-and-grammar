@@ -1,25 +1,31 @@
 /**
  * Streaming text-correction calls for the supported providers.
  *
- * Both providers speak Server-Sent Events, so the transport is shared and only
+ * All providers speak Server-Sent Events, so the transport is shared and only
  * the request shape and the delta extraction differ.
  */
 
-export type Provider = "anthropic" | "openai";
+export type Provider = "anthropic" | "openai" | "openai-compatible";
 
 export const DEFAULT_MODELS: Record<Provider, string> = {
   anthropic: "claude-sonnet-5",
   openai: "gpt-4o",
+  "openai-compatible": "openai/gpt-4o",
 };
+
+/** Used when the OpenAI-compatible base URL preference is empty. */
+const DEFAULT_COMPATIBLE_BASE_URL = "https://openrouter.ai/api/v1";
 
 export const KEY_PREFERENCE: Record<Provider, string> = {
   anthropic: "anthropicApiKey",
   openai: "openaiApiKey",
+  "openai-compatible": "openaiCompatibleApiKey",
 };
 
 export const PROVIDER_TITLES: Record<Provider, string> = {
   anthropic: "Anthropic",
   openai: "OpenAI",
+  "openai-compatible": "OpenAI-compatible",
 };
 
 const BASE_PROMPT = [
@@ -61,6 +67,8 @@ export class ProviderError extends Error {
 interface FixOptions {
   provider: Provider;
   apiKey: string;
+  /** Only read for the OpenAI-compatible provider. */
+  baseUrl?: string;
   model: string;
   text: string;
   systemPrompt: string;
@@ -159,9 +167,12 @@ function anthropicRequest({ apiKey, model, text, systemPrompt }: FixOptions): Pr
   };
 }
 
-function openaiRequest({ apiKey, model, text, systemPrompt }: FixOptions): ProviderRequest {
+function openaiRequest({ provider, baseUrl, apiKey, model, text, systemPrompt }: FixOptions): ProviderRequest {
+  const root =
+    provider === "openai-compatible" ? baseUrl?.trim() || DEFAULT_COMPATIBLE_BASE_URL : "https://api.openai.com/v1";
+
   return {
-    url: "https://api.openai.com/v1/chat/completions",
+    url: chatCompletionsUrl(root),
     headers: {
       "content-type": "application/json",
       authorization: `Bearer ${apiKey}`,
@@ -180,14 +191,35 @@ function openaiRequest({ apiKey, model, text, systemPrompt }: FixOptions): Provi
   };
 }
 
-/** Pulls the incremental text out of one decoded SSE event. Exported for tests. */
-export const EXTRACTORS: Record<Provider, (event: unknown) => string | undefined> = {
+/**
+ * Appends the endpoint to the path, keeping any query string. Accepts the full
+ * endpoint too, since that is what OpenRouter's docs show.
+ */
+function chatCompletionsUrl(root: string): string {
+  let url: URL;
+  try {
+    url = new URL(root);
+  } catch {
+    throw new ProviderError(`Invalid base URL "${root}". Use a full URL such as ${DEFAULT_COMPATIBLE_BASE_URL}.`);
+  }
+
+  url.pathname = `${url.pathname.replace(/\/+$/, "").replace(/\/chat\/completions$/, "")}/chat/completions`;
+  return url.toString();
+}
+
+/**
+ * Pulls the incremental text out of one decoded SSE event, keyed by API format:
+ * the OpenAI-compatible provider uses `openai`. Exported for tests.
+ */
+export const EXTRACTORS: Record<"anthropic" | "openai", (event: unknown) => string | undefined> = {
   anthropic: (event) => {
     const e = event as { type?: string; delta?: { type?: string; text?: string } };
     return e.type === "content_block_delta" && e.delta?.type === "text_delta" ? e.delta.text : undefined;
   },
   openai: (event) => {
-    const e = event as { choices?: Array<{ delta?: { content?: string } }> };
+    const e = event as { error?: { message?: string }; choices?: Array<{ delta?: { content?: string } }> };
+    // OpenRouter reports upstream failures inside an HTTP 200 stream; the text so far is incomplete.
+    if (e.error) throw new ProviderError(e.error.message ?? "The provider failed during the response.");
     return e.choices?.[0]?.delta?.content;
   },
 };
@@ -221,7 +253,7 @@ function explain(status: number, detail: string): string {
     return "Rate limited or out of credit. Wait a moment and retry.";
   }
   if (status === 404) {
-    return `Model not found (404). ${detail || "Check the model override in preferences."}`;
+    return `Model or URL not found (404). ${detail ? truncate(detail, 300) : "Check the model override and base URL in preferences."}`;
   }
 
   return detail ? `${status}: ${truncate(detail, 300)}` : `Request failed with status ${status}.`;
